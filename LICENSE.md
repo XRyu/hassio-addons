@@ -1,4 +1,5 @@
-# MIT License
+# Original HASS.io Addon
+## MIT License
 
 Copyright (c) 2018 Jason Hunter
 

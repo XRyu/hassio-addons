@@ -4,7 +4,7 @@ Xbox One support for Home Assistant
 
 ## About
 
-This add-on is a packaged version of the [Xbox One SmartGlass RESTful server](https://github.com/OpenXbox/xbox-smartglass-rest-python) and a Home Assistant [Xbox One custom component](https://github.com/tuxuser/home-assistant-xboxone).  It allows you to easily setup and configure controlling your Xbox from Home Assistant.
+This add-on is a packaged version of a Home Assistant [Xbox One custom component](https://github.com/tuxuser/home-assistant-xboxone) forked from hunterjm/hassio-addons.  It allows you to easily setup and configure controlling your Xbox from Home Assistant.
 
 ## Features
 

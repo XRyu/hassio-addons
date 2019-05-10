@@ -7,21 +7,30 @@ https://home-assistant.io/components/media_player.xboxone/
 CREDITS:
 - This module is based on media_player.firetv component, initially created by @happyleavesaoc
 - Original code: https://github.com/home-assistant/home-assistant/blob/dev/homeassistant/components/media_player/firetv.py
+
+NOTE:
+- Installing this component under Home Assistant 0.88 and onward requires this component to be placed in /config/custom_components/xboxone/media_player.py
 """
 import logging
-import functools
+
 import requests
 import voluptuous as vol
 from urllib.parse import urljoin
 
 from homeassistant.components.media_player import (
     MediaPlayerDevice, PLATFORM_SCHEMA)
-
-from homeassistant.components.media_player.const import (
-    SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PREVIOUS_TRACK,
-    SUPPORT_SELECT_SOURCE, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
-    SUPPORT_VOLUME_STEP, SUPPORT_VOLUME_MUTE, SUPPORT_PLAY,
-    MEDIA_TYPE_MUSIC, MEDIA_TYPE_VIDEO, MEDIA_TYPE_TVSHOW, MEDIA_TYPE_CHANNEL)
+try:
+    from homeassistant.components.media_player.const import (
+        SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PREVIOUS_TRACK,
+        SUPPORT_SELECT_SOURCE, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
+        SUPPORT_VOLUME_SET, SUPPORT_VOLUME_MUTE, SUPPORT_PLAY,
+        MEDIA_TYPE_MUSIC, MEDIA_TYPE_VIDEO, MEDIA_TYPE_TVSHOW, MEDIA_TYPE_CHANNEL)
+except ImportError:
+    from homeassistant.components.media_player import (
+        SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PREVIOUS_TRACK,
+        SUPPORT_SELECT_SOURCE, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
+        SUPPORT_VOLUME_SET, SUPPORT_VOLUME_MUTE, SUPPORT_PLAY,
+        MEDIA_TYPE_MUSIC, MEDIA_TYPE_VIDEO, MEDIA_TYPE_TVSHOW, MEDIA_TYPE_CHANNEL)
 from homeassistant.const import (
     STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING, STATE_UNKNOWN, STATE_ON,
     CONF_HOST, CONF_PORT, CONF_SSL, CONF_NAME, CONF_DEVICE, CONF_AUTHENTICATION,
@@ -34,9 +43,9 @@ _LOGGER = logging.getLogger(__name__)
 SUPPORT_XBOXONE = SUPPORT_PAUSE | \
     SUPPORT_TURN_ON | SUPPORT_TURN_OFF | SUPPORT_PREVIOUS_TRACK | \
     SUPPORT_NEXT_TRACK | SUPPORT_SELECT_SOURCE | SUPPORT_PLAY | \
-    SUPPORT_VOLUME_STEP | SUPPORT_VOLUME_MUTE
+    SUPPORT_VOLUME_SET | SUPPORT_VOLUME_MUTE
 
-REQUIRED_SERVER_VERSION = '0.9.8'
+REQUIRED_SERVER_VERSION = '0.9.6'
 
 DEFAULT_SSL = False
 DEFAULT_HOST = 'localhost'
@@ -315,11 +324,7 @@ class XboxOne:
 
     def poweron(self):
         try:
-            url = '/device/<liveid>/poweron'
-            params = None
-            if self._ip:
-                params = { 'addr': self._ip }
-            response = self.get(url, params=params).json()
+            response = self.get('/device/<liveid>/poweron').json()
             if not response.get('success'):
                 _LOGGER.error('Failed to poweron {0}'.format(self.liveid))
                 return None
@@ -406,7 +411,7 @@ class XboxOne:
         if not self._volume_controls:
             return None
 
-        url = self._volume_controls.get(command)
+        url = self.volume_controls.get(command)
 
         if not url:
             return None
@@ -532,7 +537,7 @@ class XboxOneDevice(MediaPlayerDevice):
                 and (self._xboxone.active_app_type not in ['Application', 'App'] or self._xboxone.active_app == 'Home'):
             active_support &= ~SUPPORT_NEXT_TRACK & ~SUPPORT_PREVIOUS_TRACK
         if not self._xboxone.volume_controls:
-            active_support &= ~SUPPORT_VOLUME_MUTE & ~SUPPORT_VOLUME_STEP
+            active_support &= ~SUPPORT_VOLUME_MUTE & ~SUPPORT_VOLUME_SET
         return active_support
 
     @property
@@ -549,7 +554,7 @@ class XboxOneDevice(MediaPlayerDevice):
         if playback_state:
             state = playback_state
         elif self._xboxone.connected or self._xboxone.available:
-            if self._xboxone.active_app_type in ['Application', 'App'] or self._xboxone.active_app == 'Home':
+            if self._xboxone.active_app_type not in ['Application', 'App'] or self._xboxone.active_app == 'Home':
                 state = STATE_ON
             else:
                 state = STATE_UNKNOWN
@@ -662,4 +667,9 @@ class XboxOneDevice(MediaPlayerDevice):
 
     def select_source(self, source):
         """Select input source."""
-        self._xboxone.launch_title(source)
+        if source.isdigit():
+            digits = map(int, str(source))
+            for digit in digits:
+                self._xboxone.ir_command('stb','btn.digit_'+str(digit))
+        else:
+            self._xboxone.launch_title(source)
